@@ -1025,6 +1025,7 @@ void free_cmd(struct cmd* cmd)
         default:
             panic("%s: estructura `cmd` desconocida\n", __func__);
     }
+    free(cmd);
 }
 
 
