@@ -31,6 +31,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+// Biblioteca para funciones Boletin1
+#include <pwd.h>
+#include <limits.h>
+#include <libgen.h>
 
 // Biblioteca readline
 #include <readline/readline.h>
@@ -676,10 +680,12 @@ struct cmd* parse_redr(struct cmd* cmd, char** start_of_str, char* end_of_str)
                 cmd = redrcmd(cmd, start_of_token, end_of_token, O_RDONLY, 0, 0);
                 break;
             case '>':
-                cmd = redrcmd(cmd, start_of_token, end_of_token, O_RDWR|O_CREAT, 0, 1);
+                //Acaro -> Cuando se produce una redirección creo un fichero con permisos 700
+                cmd = redrcmd(cmd, start_of_token, end_of_token, O_RDWR|O_CREAT|O_TRUNC, S_IRWXU, 1);
                 break;
             case '+': // >>
-                cmd = redrcmd(cmd, start_of_token, end_of_token, O_RDWR|O_CREAT, 0, 1);
+                //Acaro -> Cuando se produce una redirección creo un fichero con permisos 700
+                cmd = redrcmd(cmd, start_of_token, end_of_token, O_RDWR|O_CREAT|O_APPEND, S_IRWXU, 1);
                 break;
         }
     }
@@ -1041,8 +1047,28 @@ void free_cmd(struct cmd* cmd)
 char* get_cmd()
 {
     char* buf;
-
+    //EDIT Añadiendo funcionalidad para incluir una dirección en el prompt 
+    // cuando no defines una función mirar la importación
+    uid_t uid = getuid();
+    struct passwd * pw = getpwuid(uid);
+    if(!pw){
+        perror("getpwuid");
+        exit(EXIT_FAILURE);
+    }
+    printf("%s\n", pw->pw_name);
+    //EDIT: Primero creo un parametro ruta:
+    char ruta[PATH_MAX];
+    if(!getcwd(ruta, PATH_MAX)){
+        perror("getcwd");
+        exit(EXIT_FAILURE);
+    }
+    char * directorio = basename(ruta);
+    printf("%s\n", directorio);
     // Lee la orden tecleada por el usuario
+    char prompt[strlen(pw->pw_name) + strlen(directorio) + 4];
+    //strlen(">@ \0")
+    //Usar sprintf para meter en prompt la cosa
+    //sprintf
     buf = readline("simplesh> ");
 
     // Si el usuario ha escrito una orden, almacenarla en la historia.
