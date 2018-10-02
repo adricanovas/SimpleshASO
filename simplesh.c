@@ -799,7 +799,8 @@ void run_cmd(struct cmd* cmd)
             if (fork_or_panic("fork REDR") == 0)
             {
                 TRY( close(rcmd->fd) );
-                if ((fd = open(rcmd->file, rcmd->flags)) < 0)
+                //Acaro -> Llamo a open con 3 parametros
+                if ((fd = open(rcmd->file, rcmd->flags, rcmd->mode)) < 0)
                 {
                     perror("open");
                     exit(EXIT_FAILURE);
@@ -1046,30 +1047,29 @@ void free_cmd(struct cmd* cmd)
 
 char* get_cmd()
 {
-    char* buf;
-    //EDIT Añadiendo funcionalidad para incluir una dirección en el prompt 
-    // cuando no defines una función mirar la importación
+    // Acaro -> Extraemos la UID 
     uid_t uid = getuid();
+    // Acaro -> A partir de la UID generamos la estructura con el name
     struct passwd * pw = getpwuid(uid);
     if(!pw){
         perror("getpwuid");
         exit(EXIT_FAILURE);
     }
-    printf("%s\n", pw->pw_name);
-    //EDIT: Primero creo un parametro ruta:
+    // Acaro -> Extraemos la ruta
     char ruta[PATH_MAX];
     if(!getcwd(ruta, PATH_MAX)){
         perror("getcwd");
         exit(EXIT_FAILURE);
     }
+    // Acaro -> A partir de la ruta generamos el directorio
     char * directorio = basename(ruta);
-    printf("%s\n", directorio);
-    // Lee la orden tecleada por el usuario
+    // Acaro -> Generamos el prompt con size
     char prompt[strlen(pw->pw_name) + strlen(directorio) + 4];
-    //strlen(">@ \0")
-    //Usar sprintf para meter en prompt la cosa
-    //sprintf
-    buf = readline("simplesh> ");
+    sprintf(prompt, "%s@%s> ", pw->pw_name, directorio);
+
+    char* buf;
+    // Lee la orden tecleada por el usuario
+    buf = readline(prompt);
 
     // Si el usuario ha escrito una orden, almacenarla en la historia.
     if(buf)
