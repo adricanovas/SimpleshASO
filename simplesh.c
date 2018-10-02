@@ -1034,6 +1034,13 @@ void free_cmd(struct cmd* cmd)
     }
     free(cmd);
 }
+// Acaro -> Implementando CWD
+void run_cwd (){
+    char mi_cwd[PATH_MAX];
+    if(!getcwd(mi_cwd, PATH_MAX))
+        perror("getcwd");
+    printf("%s", mi_cwd);
+}
 
 
 /******************************************************************************
