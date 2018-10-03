@@ -16,7 +16,6 @@
  * Ficheros de cabecera
  */
 
-
 #define _POSIX_C_SOURCE 200809L /* IEEE 1003.1-2008 (véase /usr/include/features.h) */
 //#define NDEBUG                /* Traduce asertos y DMACROS a 'no ops' */
 
@@ -40,6 +39,8 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
+/* Declaracion previa de funciones */
+void run_cwd ();
 
 /******************************************************************************
  * Constantes, macros y variables globales
@@ -218,6 +219,9 @@ struct subscmd {
     enum cmd_type type;
     struct cmd* cmd;
 };
+
+// Acaro -> Lista de comandos internos
+//struct 
 
 
 /******************************************************************************
@@ -756,7 +760,13 @@ struct cmd* null_terminate(struct cmd* cmd)
 /******************************************************************************
  * Funciones para la ejecución de la línea de órdenes
  ******************************************************************************/
-
+// Acaro -> Funcion para comprobar si un comando es interno
+int isInternal(char * c){
+    if(strcmp(c, "cwd") == 0){
+        run_cwd();
+        return 1;
+    }return 0;
+}
 
 void exec_cmd(struct execcmd* ecmd)
 {
@@ -768,7 +778,6 @@ void exec_cmd(struct execcmd* ecmd)
 
     panic("no se encontró el comando '%s'\n", ecmd->argv[0]);
 }
-
 
 void run_cmd(struct cmd* cmd)
 {
@@ -790,7 +799,7 @@ void run_cmd(struct cmd* cmd)
         case EXEC:
             ecmd = (struct execcmd*) cmd;
             if (fork_or_panic("fork EXEC") == 0)
-                exec_cmd(ecmd);
+                    exec_cmd(ecmd);
             TRY( wait(NULL) );
             break;
 
@@ -1039,7 +1048,7 @@ void run_cwd (){
     char mi_cwd[PATH_MAX];
     if(!getcwd(mi_cwd, PATH_MAX))
         perror("getcwd");
-    printf("%s", mi_cwd);
+    printf("%s\n", mi_cwd);
 }
 
 
