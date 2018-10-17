@@ -88,13 +88,15 @@ static int g_dbg_level = 0;
 
 // Número máximo de argumentos de un comando
 #define MAX_ARGS 16
-
+// Número de comandos internos
+#define IC_NUM 1
 
 // Delimitadores
 static const char WHITESPACE[] = " \t\r\n\v";
 // Caracteres especiales
 static const char SYMBOLS[] = "<|>&;()";
-
+// Acaro -> Declaracion de la lista de comandos internos
+static const char * internalList[IC_NUM] = {"cwd"};
 
 /******************************************************************************
  * Funciones auxiliares
@@ -761,24 +763,35 @@ struct cmd* null_terminate(struct cmd* cmd)
  * Funciones para la ejecución de la línea de órdenes
  ******************************************************************************/
 // Acaro -> Funcion para comprobar si un comando es interno
-int isInternal(char * c){
-    if(strcmp(c, "cwd") == 0){
-        run_cwd();
-        return 1;
-    }return 0;
+int isInternal(struct execcmd* ecmd){
+    // Acaro -> Dada una estructura de datos
+    char * c = ecmd->argv[0];
+    int i = 0;
+    while( i < IC_NUM && strcmp(internalList[i], c) != 0){
+        i ++;
+    }
+    switch(i)
+    {
+        case 0:
+            run_cwd();
+            break;
+        default:
+            return 0;
+    }
+    return 1;
 }
 
 void exec_cmd(struct execcmd* ecmd)
 {
+    
     assert(ecmd->type == EXEC);
 
     if (ecmd->argv[0] == 0) exit(EXIT_SUCCESS);
-
+    
     execvp(ecmd->argv[0], ecmd->argv);
 
     panic("no se encontró el comando '%s'\n", ecmd->argv[0]);
 }
-
 void run_cmd(struct cmd* cmd)
 {
     struct execcmd* ecmd;
@@ -798,9 +811,14 @@ void run_cmd(struct cmd* cmd)
     {
         case EXEC:
             ecmd = (struct execcmd*) cmd;
-            if (fork_or_panic("fork EXEC") == 0)
+            if(!isInternal(ecmd)){
+                if (fork_or_panic("fork EXEC") == 0){
                     exec_cmd(ecmd);
+                }
+            // sustituir wait por waitpid para poder esperar al proceso que toca
+            // Hay qque hacerlo en todos
             TRY( wait(NULL) );
+            }
             break;
 
         case REDR:
@@ -814,13 +832,17 @@ void run_cmd(struct cmd* cmd)
                     perror("open");
                     exit(EXIT_FAILURE);
                 }
-
                 if (rcmd->cmd->type == EXEC)
-                    exec_cmd((struct execcmd*) rcmd->cmd);
+                {
+                    if (!isInternal((struct execcmd*) rcmd->cmd))
+                        exec_cmd((struct execcmd*) rcmd->cmd);
+                }
                 else
                     run_cmd(rcmd->cmd);
                 exit(EXIT_SUCCESS);
             }
+            // sustituir wait por waitpid para poder esperar al proceso que toca
+            // Hay qque hacerlo en todos, si hay que esperar al hijo izq primero
             TRY( wait(NULL) );
             break;
 
@@ -845,9 +867,10 @@ void run_cmd(struct cmd* cmd)
                 TRY( dup(p[1]) );
                 TRY( close(p[0]) );
                 TRY( close(p[1]) );
-                if (pcmd->left->type == EXEC)
-                    exec_cmd((struct execcmd*) pcmd->left);
-                else
+                if (pcmd->left->type == EXEC){
+                    if(!isInternal((struct execcmd*) pcmd->left))
+                        exec_cmd((struct execcmd*) pcmd->left);
+                }else
                     run_cmd(pcmd->left);
                 exit(EXIT_SUCCESS);
             }
@@ -859,9 +882,10 @@ void run_cmd(struct cmd* cmd)
                 TRY( dup(p[0]) );
                 TRY( close(p[0]) );
                 TRY( close(p[1]) );
-                if (pcmd->right->type == EXEC)
-                    exec_cmd((struct execcmd*) pcmd->right);
-                else
+                if (pcmd->right->type == EXEC){
+                    if(!isInternal((struct execcmd*) pcmd->right))
+                        exec_cmd((struct execcmd*) pcmd->right);
+                }else
                     run_cmd(pcmd->right);
                 exit(EXIT_SUCCESS);
             }
@@ -874,7 +898,9 @@ void run_cmd(struct cmd* cmd)
             break;
 
         case BACK:
+        // 
             bcmd = (struct backcmd*)cmd;
+
             if (fork_or_panic("fork BACK") == 0)
             {
                 if (bcmd->cmd->type == EXEC)
@@ -1041,7 +1067,6 @@ void free_cmd(struct cmd* cmd)
         default:
             panic("%s: estructura `cmd` desconocida\n", __func__);
     }
-    free(cmd);
 }
 // Acaro -> Implementando CWD
 void run_cwd (){
@@ -1159,7 +1184,7 @@ int main(int argc, char** argv)
 
         // Libera la memoria de las estructuras `cmd`
         free_cmd(cmd);
-
+        free(cmd);
         // Libera la memoria de la línea de órdenes
         free(buf);
     }
